@@ -75,8 +75,8 @@ io.on('connection', (socket) => {
          // Calculate the timestamp in seconds
         const timestamp = Date.now();
 
-        if(stream.timestamp > timestamp-4000){
-        socket.broadcast.emit('stream', stream);}
+        if(stream.timestamp > timestamp-4000){}
+        socket.broadcast.emit('stream', stream);
     });
 
     socket.on('disconnect', () => {
