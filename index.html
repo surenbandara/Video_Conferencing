@@ -33,7 +33,7 @@
 
                 // Variables to track the previous frame and timestamp for the sender
                 let prevSenderFrame = null;
-                let prevSenderTimestamp = null;
+              
 
                 // Wait for the video to start playing
                 videoElement.onplay = function () {
@@ -63,14 +63,25 @@
                                 const compressedImageData = pako.deflate(uint8Array, { to: 'string' });
 
                                 // Calculate the sender timestamp
-                                const currentSenderTimestamp = Date.now();
-                                const senderTimestamp = prevSenderTimestamp ? currentSenderTimestamp - prevSenderTimestamp : 0;
+                                // Get the current time
+                                const now = new Date();
+
+                                // Extract the current hour, minute, and second
+                                const hours = now.getHours();
+                                const minutes = now.getMinutes();
+                                const seconds = now.getSeconds();
+                                const Milliseconds = Date.now();
+
+                                // Calculate the timestamp in seconds
+                                const timestamp = Date.now();
+
+                                console.log(timestamp);
 
                                 // Send the compressed frame data and timestamp to the server
-                                socket.emit('stream', { imageData: compressedImageData, timestamp: senderTimestamp });
+                                socket.emit('stream', { imageData: compressedImageData, timestamp: timestamp });
                                 prevSenderFrame = compressedImageData;
 
-                                prevSenderTimestamp = currentSenderTimestamp;
+        
                             };
                             reader.readAsArrayBuffer(blob);
                         }, 'image/jpeg', 0.04); // Adjust the image format and quality level as needed

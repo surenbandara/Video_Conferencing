@@ -1,3 +1,4 @@
+const { timeStamp } = require('console');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -30,40 +31,52 @@ io.on('connection', (socket) => {
 
     // Handle incoming video streams from clients
     socket.on('stream', (stream) => {
-        if (!startTime) {
-            // Record the start time when the first stream is received
-            startTime = Date.now();
-        }
+        // if (!startTime) {
+        //     // Record the start time when the first stream is received
+        //     startTime = Date.now();
+        // }
 
         // Get the client's specific data
-        const clientData = clients.get(socket.id);
+         //const clientData = clients.get(socket.id);
 
-        // Get the size of the incoming data in bytes
-        const dataSizeBytes = Buffer.from(stream.imageData, 'base64').length;
+        // // Get the size of the incoming data in bytes
+        // const dataSizeBytes = Buffer.from(stream.imageData, 'base64').length;
 
-        // Increment the client's total data size counter in bytes
-        clientData.totalDataSizeBytes += dataSizeBytes;
+        // // Increment the client's total data size counter in bytes
+        // clientData.totalDataSizeBytes += dataSizeBytes;
 
-        // Increment the global total data size counter in bytes
-        totalDataSizeBytes += dataSizeBytes;
+        // // Increment the global total data size counter in bytes
+        // totalDataSizeBytes += dataSizeBytes;
 
-        // Convert the data size to megabytes (MB)
-        const dataSizeMB = bytesToMB(dataSizeBytes);
+        // // Convert the data size to megabytes (MB)
+        // const dataSizeMB = bytesToMB(dataSizeBytes);
 
-        // Calculate the elapsed time in seconds
-        const currentTime = Date.now();
-        const elapsedTimeSeconds = (currentTime - startTime) / 1000;
+        // // Calculate the elapsed time in seconds
+        // const currentTime = Date.now();
+        // const elapsedTimeSeconds = (currentTime - startTime) / 1000;
 
-        if (elapsedTimeSeconds > 0) {
-            // Calculate the data transfer rate for this client in Mb/s
-            const dataTransferRateMbPerSec = (bytesToMB(clientData.totalDataSizeBytes) / elapsedTimeSeconds).toFixed(2);
+        // if (elapsedTimeSeconds > 0) {
+        //     // Calculate the data transfer rate for this client in Mb/s
+        //     const dataTransferRateMbPerSec = (bytesToMB(clientData.totalDataSizeBytes) / elapsedTimeSeconds).toFixed(2);
 
-            // Log the received data size, total data size, and data transfer rate in Mb/s for this client
-            console.log(`Client ${socket.id}: Received data size: ${dataSizeMB} MB | Total data size: ${bytesToMB(clientData.totalDataSizeBytes)} MB | Data Transfer Rate: ${dataTransferRateMbPerSec} Mb/s`);
-        }
+        //     // Log the received data size, total data size, and data transfer rate in Mb/s for this client
+        //     console.log(`Client ${socket.id}: Received data size: ${dataSizeMB} MB | Total data size: ${bytesToMB(clientData.totalDataSizeBytes)} MB | Data Transfer Rate: ${dataTransferRateMbPerSec} Mb/s`);
+        // }
 
         // Broadcast the stream to all connected clients except the sender
-        socket.broadcast.emit('stream', stream);
+        
+        const now = new Date();
+
+        // Extract the current hour, minute, and second
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+
+         // Calculate the timestamp in seconds
+        const timestamp = Date.now();
+
+        if(stream.timestamp > timestamp-1000){
+        socket.broadcast.emit('stream', stream);}
     });
 
     socket.on('disconnect', () => {
