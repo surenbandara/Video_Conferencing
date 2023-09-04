@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Camera Stream</title>
+</head>
+<body>
+    <h1>Sender and Receiver</h1>
+    <div class="sender">
+        <h2>Sender</h2>
+        <video id="video" autoplay></video>
+        <canvas id="senderCanvas"></canvas>
+    </div>
+    <div class="receiver">
+        <h2>Receiver</h2>
+        <canvas id="receiverCanvas"></canvas>
+    </div>
+    <!-- Include the pako library for LZ77 compression -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // Access the user's camera and start streaming
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                const videoElement = document.getElementById('video');
+                videoElement.srcObject = stream;
+
+                // Set up a Canvas element for the sender
+                const senderCanvas = document.getElementById('senderCanvas');
+                const senderContext = senderCanvas.getContext('2d');
+
+                // Variables to track the previous frame and timestamp for the sender
+                let prevSenderFrame = null;
+                let prevSenderTimestamp = null;
+
+                // Wait for the video to start playing
+                videoElement.onplay = function () {
+                    senderCanvas.width = videoElement.videoWidth;
+                    senderCanvas.height = videoElement.videoHeight;
+
+                    // Capture and send frames to the server
+                    setInterval(function () {
+                        senderContext.drawImage(videoElement, 0, 0, senderCanvas.width, senderCanvas.height);
+
+                        // Convert the frame to Blob with JPEG format and quality
+                        senderCanvas.toBlob(function (blob) {
+                            if (!blob) {
+                                console.error('Error converting canvas to Blob.');
+                                return;
+                            }
+
+                            // Read the Blob as an ArrayBuffer
+                            const reader = new FileReader();
+                            reader.onload = function () {
+                                const arrayBuffer = reader.result;
+                                
+                                // Convert the ArrayBuffer to a Uint8Array
+                                const uint8Array = new Uint8Array(arrayBuffer);
+
+                                // Compress the frame data using LZ77
+                                const compressedImageData = pako.deflate(uint8Array, { to: 'string' });
+
+                                // Calculate the sender timestamp
+                                const currentSenderTimestamp = Date.now();
+                                const senderTimestamp = prevSenderTimestamp ? currentSenderTimestamp - prevSenderTimestamp : 0;
+
+                                // Send the compressed frame data and timestamp to the server
+                                socket.emit('stream', { imageData: compressedImageData, timestamp: senderTimestamp });
+                                prevSenderFrame = compressedImageData;
+
+                                prevSenderTimestamp = currentSenderTimestamp;
+                            };
+                            reader.readAsArrayBuffer(blob);
+                        }, 'image/jpeg', 0.7); // Adjust the image format and quality level as needed
+
+                    }, 50); // Adjust the capture interval as needed
+                };
+            })
+            .catch(function (error) {
+                console.error('Error accessing the camera:', error);
+            });
+
+        // Set up a Canvas element for the receiver
+        const receiverCanvas = document.getElementById('receiverCanvas');
+        const receiverContext = receiverCanvas.getContext('2d');
+
+        // Create a buffer to store received frames
+        const frameBuffer = [];
+        const bufferLength = 10; // Adjust the buffer length as needed
+        let frameIndex = 0;
+
+        // Function to draw a frame on the receiver canvas
+        function drawFrame(frameData) {
+            // Decompress the received frame data using LZ77
+            const decompressedUint8Array = pako.inflate(frameData.imageData, { to: 'Uint8Array' });
+            const blob = new Blob([decompressedUint8Array], { type: 'image/jpeg' });
+
+            const img = new Image();
+            img.src = URL.createObjectURL(blob);
+
+            img.onload = function () {
+                receiverCanvas.width = img.width;
+                receiverCanvas.height = img.height;
+                receiverContext.drawImage(img, 0, 0, img.width, img.height);
+            };
+        }
+
+        // Handle received frames from the server and display them at a constant rate
+        socket.on('stream', (frameData) => {
+            // Add the received frame to the buffer
+            frameBuffer[frameIndex] = frameData;
+            frameIndex = (frameIndex + 1) % bufferLength;
+
+            // Draw the oldest frame from the buffer
+            if (frameBuffer[frameIndex]) {
+                drawFrame(frameBuffer[frameIndex]);
+            }
+        });
+    </script>
+</body>
+</html>
+
