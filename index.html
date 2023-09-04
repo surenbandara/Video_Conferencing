@@ -73,9 +73,9 @@
                                 prevSenderTimestamp = currentSenderTimestamp;
                             };
                             reader.readAsArrayBuffer(blob);
-                        }, 'image/jpeg', 0.1); // Adjust the image format and quality level as needed
+                        }, 'image/jpeg', 0.04); // Adjust the image format and quality level as needed
 
-                    }, 50); // Adjust the capture interval as needed
+                    }, 75); // Adjust the capture interval as needed
                 };
             })
             .catch(function (error) {
