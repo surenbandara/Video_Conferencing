@@ -8,6 +8,7 @@ const io = socketIo(server);
 
 let totalDataSizeBytes = 0; // Initialize the total data size counter in bytes
 let startTime = null; // Initialize the start time
+const clients = new Map(); // Map to store client-specific data
 
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
@@ -21,6 +22,12 @@ function bytesToMB(bytes) {
 io.on('connection', (socket) => {
     console.log('A user connected');
 
+    // Store client-specific data
+    clients.set(socket.id, {
+        totalDataSizeBytes: 0,
+        startTime: null,
+    });
+
     // Handle incoming video streams from clients
     socket.on('stream', (stream) => {
         if (!startTime) {
@@ -28,10 +35,16 @@ io.on('connection', (socket) => {
             startTime = Date.now();
         }
 
+        // Get the client's specific data
+        const clientData = clients.get(socket.id);
+
         // Get the size of the incoming data in bytes
         const dataSizeBytes = Buffer.from(stream.imageData, 'base64').length;
 
-        // Increment the total data size counter in bytes
+        // Increment the client's total data size counter in bytes
+        clientData.totalDataSizeBytes += dataSizeBytes;
+
+        // Increment the global total data size counter in bytes
         totalDataSizeBytes += dataSizeBytes;
 
         // Convert the data size to megabytes (MB)
@@ -42,11 +55,11 @@ io.on('connection', (socket) => {
         const elapsedTimeSeconds = (currentTime - startTime) / 1000;
 
         if (elapsedTimeSeconds > 0) {
-            // Calculate the data transfer rate in Mb/s
-            const dataTransferRateMbPerSec = (bytesToMB(totalDataSizeBytes) / elapsedTimeSeconds).toFixed(2);
+            // Calculate the data transfer rate for this client in Mb/s
+            const dataTransferRateMbPerSec = (bytesToMB(clientData.totalDataSizeBytes) / elapsedTimeSeconds).toFixed(2);
 
-            // Log the received data size, total data size, and data transfer rate in Mb/s
-            console.log(`Received data size: ${dataSizeMB} MB | Total data size: ${bytesToMB(totalDataSizeBytes)} MB | Data Transfer Rate: ${dataTransferRateMbPerSec} Mb/s`);
+            // Log the received data size, total data size, and data transfer rate in Mb/s for this client
+            console.log(`Client ${socket.id}: Received data size: ${dataSizeMB} MB | Total data size: ${bytesToMB(clientData.totalDataSizeBytes)} MB | Data Transfer Rate: ${dataTransferRateMbPerSec} Mb/s`);
         }
 
         // Broadcast the stream to all connected clients except the sender
@@ -55,6 +68,9 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('A user disconnected');
+
+        // Remove client-specific data when a client disconnects
+        clients.delete(socket.id);
     });
 });
 
