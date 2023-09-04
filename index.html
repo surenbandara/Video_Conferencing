@@ -44,7 +44,7 @@
                     setInterval(function () {
                         senderContext.drawImage(videoElement, 0, 0, senderCanvas.width, senderCanvas.height);
 
-                        // Convert the frame to Blob with JPEG format and quality
+                        // Convert the frame to a Blob with JPEG format and reduced quality
                         senderCanvas.toBlob(function (blob) {
                             if (!blob) {
                                 console.error('Error converting canvas to Blob.');
@@ -55,7 +55,7 @@
                             const reader = new FileReader();
                             reader.onload = function () {
                                 const arrayBuffer = reader.result;
-                                
+
                                 // Convert the ArrayBuffer to a Uint8Array
                                 const uint8Array = new Uint8Array(arrayBuffer);
 
@@ -73,7 +73,7 @@
                                 prevSenderTimestamp = currentSenderTimestamp;
                             };
                             reader.readAsArrayBuffer(blob);
-                        }, 'image/jpeg', 0.7); // Adjust the image format and quality level as needed
+                        }, 'image/jpeg', 0.2); // Adjust the image format and quality level as needed
 
                     }, 1000); // Adjust the capture interval as needed
                 };
@@ -121,4 +121,3 @@
     </script>
 </body>
 </html>
-
