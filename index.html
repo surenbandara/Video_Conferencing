@@ -35,6 +35,16 @@
                 let prevSenderFrame = null;
                 let framePart = 1; // Track the current frame part
 
+                // Simulated network condition (Mbps)
+                let networkCondition = 10; // Starting with a high-quality network condition
+
+                // Function to calculate upload speed
+                function calculateUploadSpeed() {
+                    // In this simulation, we adjust the network condition between 1 and 10 Mbps
+                    networkCondition = Math.max(1, Math.min(10, networkCondition + (Math.random() - 0.5)));
+                    return networkCondition;
+                }
+
                 // Wait for the video to start playing
                 videoElement.onplay = function () {
                     senderCanvas.width = videoElement.videoWidth;
@@ -44,7 +54,7 @@
                     setInterval(function () {
                         senderContext.drawImage(videoElement, 0, 0, senderCanvas.width, senderCanvas.height);
 
-                        // Convert the frame to a Blob with JPEG format and reduced quality
+                        // Convert the frame to a Blob with JPEG format and adjusted quality
                         senderCanvas.toBlob(function (blob) {
                             if (!blob) {
                                 console.error('Error converting canvas to Blob.');
@@ -59,23 +69,27 @@
                                 // Convert the ArrayBuffer to a Uint8Array
                                 const uint8Array = new Uint8Array(arrayBuffer);
 
-                                // Compress the frame data using LZ77
-                                const compressedImageData = pako.deflate(uint8Array, { to: 'string' });
-
                                 // Calculate the sender timestamp
                                 const timestamp = Date.now();
 
-                            
+                                // Calculate the quality based on the current network condition
+                                const quality = 0.1 + (networkCondition / 10) * 0.7;
 
-                                
-                                socket.emit('stream', { imageDataPart: compressedImageData, timestamp: timestamp, part: framePart});
+                                // Compress the frame data using LZ77 with adjusted quality
+                                const compressedImageData = pako.deflate(uint8Array, { to: 'string', level: quality });
+
+                                socket.emit('stream', { imageDataPart: compressedImageData, timestamp: timestamp, part: framePart });
 
                                 framePart++; // Increment the frame part
 
                                 prevSenderFrame = compressedImageData;
                             };
                             reader.readAsArrayBuffer(blob);
-                        }, 'image/jpeg', 0.04); // Adjust the image format and quality level as needed
+                        }, 'image/jpeg', 1); // Always start with high-quality (1.0) JPEG
+
+                        // Adjust quality based on network conditions
+                        const uploadSpeed = calculateUploadSpeed();
+                        console.log(`Network condition (Mbps): ${uploadSpeed.toFixed(2)}`);
 
                     }, 75); // Adjust the capture interval as needed
                 };
@@ -107,23 +121,17 @@
             };
         }
 
-       
-      
         socket.on('stream', (frameData) => {
             const timestamp = frameData.timestamp;
             const imageDataPart = frameData.imageDataPart;
             const part = frameData.part;
-    
-            
-            
-            receivedFrames[part]={'imageDataPart':imageDataPart , 'timestamp':timestamp , 'part':part };
 
-            if(receivedFrames[part-1]){
+            receivedFrames[part] = { imageDataPart: imageDataPart, timestamp: timestamp, part: part };
+
+            if (receivedFrames[part - 1]) {
                 drawFrame(imageDataPart);
-                delete receivedFrames[part-1];
+                delete receivedFrames[part - 1];
             }
-            
-            
         });
 
     </script>
