@@ -33,7 +33,7 @@
 
                 // Variables to track the previous frame and timestamp for the sender
                 let prevSenderFrame = null;
-              
+                let framePart = 1; // Track the current frame part
 
                 // Wait for the video to start playing
                 videoElement.onplay = function () {
@@ -63,25 +63,34 @@
                                 const compressedImageData = pako.deflate(uint8Array, { to: 'string' });
 
                                 // Calculate the sender timestamp
-                                // Get the current time
-                                const now = new Date();
-
-                                // Extract the current hour, minute, and second
-                                const hours = now.getHours();
-                                const minutes = now.getMinutes();
-                                const seconds = now.getSeconds();
-                                const Milliseconds = Date.now();
-
-                                // Calculate the timestamp in seconds
                                 const timestamp = Date.now();
 
-                                console.log(timestamp);
+                                // Split the compressed image into parts
+                                const chunkSize = 1000; // Adjust the chunk size as needed
+                                const totalParts = Math.ceil(compressedImageData.length / chunkSize);
+                                const imageDataParts = [];
+                                
+                                console.log(compressedImageData);
 
-                                // Send the compressed frame data and timestamp to the server
-                                socket.emit('stream', { imageData: compressedImageData, timestamp: timestamp });
+                                for (let i = 0; i < totalParts; i++) {
+                                    const start = i * chunkSize;
+                                    const end = (i + 1) * chunkSize;
+                                    const imageDataPart = compressedImageData.slice(start, end);
+                                    console.log(imageDataPart);
+                                    // Send the compressed frame data part and timestamp to the server
+                                    if(i==totalParts-1){
+                                    socket.emit('stream', { imageDataPart: imageDataPart, timestamp: timestamp, part: framePart,end: true });}
+
+                                    else{
+                                        socket.emit('stream', { imageDataPart: imageDataPart, timestamp: timestamp, part: framePart ,end:false});
+                                    }
+
+                                    
+                                }
+
+                                framePart++; // Increment the frame part
+
                                 prevSenderFrame = compressedImageData;
-
-        
                             };
                             reader.readAsArrayBuffer(blob);
                         }, 'image/jpeg', 0.04); // Adjust the image format and quality level as needed
@@ -97,15 +106,13 @@
         const receiverCanvas = document.getElementById('receiverCanvas');
         const receiverContext = receiverCanvas.getContext('2d');
 
-        // Create a buffer to store received frames
-        const frameBuffer = [];
-        const bufferLength = 10; // Adjust the buffer length as needed
-        let frameIndex = 0;
+        // Object to store and assemble received frame parts
+        const receivedFrames = {};
 
         // Function to draw a frame on the receiver canvas
         function drawFrame(frameData) {
             // Decompress the received frame data using LZ77
-            const decompressedUint8Array = pako.inflate(frameData.imageData, { to: 'Uint8Array' });
+            const decompressedUint8Array = pako.inflate(frameData, { to: 'Uint8Array' });
             const blob = new Blob([decompressedUint8Array], { type: 'image/jpeg' });
 
             const img = new Image();
@@ -118,17 +125,72 @@
             };
         }
 
-        // Handle received frames from the server and display them at a constant rate
-        socket.on('stream', (frameData) => {
-            // Add the received frame to the buffer
-            frameBuffer[frameIndex] = frameData;
-            frameIndex = (frameIndex + 1) % bufferLength;
+        // Handle received frames from the server
 
-            // Draw the oldest frame from the buffer
-            if (frameBuffer[frameIndex]) {
-                drawFrame(frameBuffer[frameIndex]);
+        // Function to concatenate ArrayBuffer objects
+        function concatenateArrayBuffers(arrays) {
+        // Calculate the total length of all ArrayBuffers
+        let totalLength = 0;
+        for (const array of arrays) {
+            totalLength += array.byteLength;
+        }
+
+        // Create a new ArrayBuffer with the total length
+        const concatenatedArray = new ArrayBuffer(totalLength);
+
+        // Create a view of the concatenated ArrayBuffer
+        const concatenatedView = new Uint8Array(concatenatedArray);
+
+        // Copy the data from each ArrayBuffer into the concatenated ArrayBuffer
+        let offset = 0;
+        for (const array of arrays) {
+            const view = new Uint8Array(array);
+            concatenatedView.set(view, offset);
+            offset += view.length;
+        }
+
+        return concatenatedArray;
+        }
+
+        socket.on('stream', (frameData) => {
+            const timestamp = frameData.timestamp;
+            const imageDataPart = frameData.imageDataPart;
+            const part = frameData.part;
+            const end = frameData.end;
+
+            console.log(imageDataPart);
+
+            // Initialize the frame object if it doesn't exist
+            if (!receivedFrames[part]) {
+                receivedFrames[part] = { parts: [], end: false };
+            }
+
+            // Store the received frame part in the object
+            receivedFrames[part].parts.push(imageDataPart);
+
+            // Mark the end of the frame if end is true
+            if (end) {
+                receivedFrames[part].end = true;
+                
+            }
+
+            // If all parts are received and it's marked as the end, assemble and display the frame
+            if (receivedFrames[part].end) {
+                const parts = receivedFrames[part].parts;
+                // const partKeys = Object.keys(parts).sort((a, b) => parseInt(a) - parseInt(b));
+                // const compressedImageData = partKeys.map((key) => parts[key]).join('');
+
+                
+                // Draw the assembled frame
+                const uint8Array = new Uint8Array(parts);
+                console.log('finished',uint8Array);
+                drawFrame(concatenateArrayBuffers(parts));
+
+                // Clear the frame object
+                delete receivedFrames[part];
             }
         });
+
     </script>
 </body>
 </html>
