@@ -30,39 +30,39 @@ io.on('connection', (socket) => {
 
     // Handle incoming video streams from clients
     socket.on('stream', (stream) => {
-        if (!startTime) {
-            // Record the start time when the first stream is received
-            startTime = Date.now();
-        }
+        // if (!startTime) {
+        //     // Record the start time when the first stream is received
+        //     startTime = Date.now();
+        // }
 
         // Get the client's specific data
         const clientData = clients.get(socket.id);
 
-        // Check if stream.imageDataPart is defined and not empty
-        if (stream.imageDataPart && stream.imageDataPart.length > 0) {
-            // Get the size of the incoming data in bytes
-            const dataSizeBytes = Buffer.from(stream.imageDataPart, 'base64').length;
+        // // Check if stream.imageDataPart is defined and not empty
+        // if (stream.imageDataPart && stream.imageDataPart.length > 0) {
+        //     // Get the size of the incoming data in bytes
+        //     const dataSizeBytes = Buffer.from(stream.imageDataPart, 'base64').length;
 
-            // Increment the client's total data size counter in bytes
-            clientData.totalDataSizeBytes += dataSizeBytes;
+        //     // Increment the client's total data size counter in bytes
+        //     clientData.totalDataSizeBytes += dataSizeBytes;
 
-            // Increment the global total data size counter in bytes
-            totalDataSizeBytes += dataSizeBytes;
+        //     // Increment the global total data size counter in bytes
+        //     totalDataSizeBytes += dataSizeBytes;
 
-            // Convert the data size to megabytes (MB)
-            const dataSizeMB = bytesToMB(dataSizeBytes);
+        //     // Convert the data size to megabytes (MB)
+        //     const dataSizeMB = bytesToMB(dataSizeBytes);
 
-            // Calculate the elapsed time in seconds
-            const currentTime = Date.now();
-            const elapsedTimeSeconds = (currentTime - startTime) / 1000;
+        //     // Calculate the elapsed time in seconds
+        //     const currentTime = Date.now();
+        //     const elapsedTimeSeconds = (currentTime - startTime) / 1000;
 
-            if (elapsedTimeSeconds > 0) {
-                // Calculate the data transfer rate for this client in Mb/s
-                const dataTransferRateMbPerSec = (bytesToMB(clientData.totalDataSizeBytes) / elapsedTimeSeconds).toFixed(2);
+        //     if (elapsedTimeSeconds > 0) {
+        //         // Calculate the data transfer rate for this client in Mb/s
+        //         const dataTransferRateMbPerSec = (bytesToMB(clientData.totalDataSizeBytes) / elapsedTimeSeconds).toFixed(2);
 
-                // Log the received data size, total data size, and data transfer rate in Mb/s for this client
-                console.log(`Client ${socket.id}: Received data size: ${dataSizeMB} MB | Total data size: ${bytesToMB(clientData.totalDataSizeBytes)} MB | Data Transfer Rate: ${dataTransferRateMbPerSec} Mb/s`);
-            }
+        //         // Log the received data size, total data size, and data transfer rate in Mb/s for this client
+        //         console.log(`Client ${socket.id}: Received data size: ${dataSizeMB} MB | Total data size: ${bytesToMB(clientData.totalDataSizeBytes)} MB | Data Transfer Rate: ${dataTransferRateMbPerSec} Mb/s`);
+        //     }
 
             // Broadcast the stream to all connected clients except the sender
             const now = new Date();
@@ -78,8 +78,8 @@ io.on('connection', (socket) => {
             if (stream.timestamp > timestamp - 3000) {
                 socket.broadcast.emit('stream', stream);
             }
-        } else {
-            console.error('Invalid or empty stream.imageDataPart');
+         else {
+            console.error('Invalid or empty ');
         }
     });
 

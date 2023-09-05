@@ -65,28 +65,10 @@
                                 // Calculate the sender timestamp
                                 const timestamp = Date.now();
 
-                                // Split the compressed image into parts
-                                const chunkSize = 1000; // Adjust the chunk size as needed
-                                const totalParts = Math.ceil(compressedImageData.length / chunkSize);
-                                const imageDataParts = [];
+                            
+
                                 
-                                console.log(compressedImageData);
-
-                                for (let i = 0; i < totalParts; i++) {
-                                    const start = i * chunkSize;
-                                    const end = (i + 1) * chunkSize;
-                                    const imageDataPart = compressedImageData.slice(start, end);
-                                    console.log(imageDataPart);
-                                    // Send the compressed frame data part and timestamp to the server
-                                    if(i==totalParts-1){
-                                    socket.emit('stream', { imageDataPart: imageDataPart, timestamp: timestamp, part: framePart,end: true });}
-
-                                    else{
-                                        socket.emit('stream', { imageDataPart: imageDataPart, timestamp: timestamp, part: framePart ,end:false});
-                                    }
-
-                                    
-                                }
+                                socket.emit('stream', { imageDataPart: compressedImageData, timestamp: timestamp, part: framePart});
 
                                 framePart++; // Increment the frame part
 
@@ -125,70 +107,23 @@
             };
         }
 
-        // Handle received frames from the server
-
-        // Function to concatenate ArrayBuffer objects
-        function concatenateArrayBuffers(arrays) {
-        // Calculate the total length of all ArrayBuffers
-        let totalLength = 0;
-        for (const array of arrays) {
-            totalLength += array.byteLength;
-        }
-
-        // Create a new ArrayBuffer with the total length
-        const concatenatedArray = new ArrayBuffer(totalLength);
-
-        // Create a view of the concatenated ArrayBuffer
-        const concatenatedView = new Uint8Array(concatenatedArray);
-
-        // Copy the data from each ArrayBuffer into the concatenated ArrayBuffer
-        let offset = 0;
-        for (const array of arrays) {
-            const view = new Uint8Array(array);
-            concatenatedView.set(view, offset);
-            offset += view.length;
-        }
-
-        return concatenatedArray;
-        }
-
+       
+      
         socket.on('stream', (frameData) => {
             const timestamp = frameData.timestamp;
             const imageDataPart = frameData.imageDataPart;
             const part = frameData.part;
-            const end = frameData.end;
+    
+            
+            
+            receivedFrames[part]={'imageDataPart':imageDataPart , 'timestamp':timestamp , 'part':part };
 
-            console.log(imageDataPart);
-
-            // Initialize the frame object if it doesn't exist
-            if (!receivedFrames[part]) {
-                receivedFrames[part] = { parts: [], end: false };
+            if(receivedFrames[part-1]){
+                drawFrame(imageDataPart);
+                delete receivedFrames[part-1];
             }
-
-            // Store the received frame part in the object
-            receivedFrames[part].parts.push(imageDataPart);
-
-            // Mark the end of the frame if end is true
-            if (end) {
-                receivedFrames[part].end = true;
-                
-            }
-
-            // If all parts are received and it's marked as the end, assemble and display the frame
-            if (receivedFrames[part].end) {
-                const parts = receivedFrames[part].parts;
-                // const partKeys = Object.keys(parts).sort((a, b) => parseInt(a) - parseInt(b));
-                // const compressedImageData = partKeys.map((key) => parts[key]).join('');
-
-                
-                // Draw the assembled frame
-                const uint8Array = new Uint8Array(parts);
-                console.log('finished',uint8Array);
-                drawFrame(concatenateArrayBuffers(parts));
-
-                // Clear the frame object
-                delete receivedFrames[part];
-            }
+            
+            
         });
 
     </script>
