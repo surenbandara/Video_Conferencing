@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
             // Calculate the timestamp in seconds
             const timestamp = Date.now();
 
-            if (stream.timestamp > timestamp - 5000) {
+            if (stream.timestamp > timestamp - 3000) {
                 socket.broadcast.emit('stream', stream);
             }
          else {
