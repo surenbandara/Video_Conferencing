@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Camera Stream</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
 </head>
 <body>
     <h1>Sender and Receiver</h1>
@@ -16,7 +17,7 @@
         <canvas id="receiverCanvas"></canvas>
     </div>
     <!-- Include the pako library for LZ77 compression -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
+    
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -49,10 +50,14 @@
                 videoElement.onplay = function () {
                     senderCanvas.width = videoElement.videoWidth;
                     senderCanvas.height = videoElement.videoHeight;
-
+                    
+                    
                     // Capture and send frames to the server
                     setInterval(function () {
                         senderContext.drawImage(videoElement, 0, 0, senderCanvas.width, senderCanvas.height);
+                        
+                        // Calculate the quality based on the current network condition
+                        const quality = 0.1 + (networkCondition / 10) * 0.7;
 
                         // Convert the frame to a Blob with JPEG format and adjusted quality
                         senderCanvas.toBlob(function (blob) {
@@ -72,11 +77,11 @@
                                 // Calculate the sender timestamp
                                 const timestamp = Date.now();
 
-                                // Calculate the quality based on the current network condition
-                                const quality = 0.1 + (networkCondition / 10) * 0.7;
-
+                                
+                                
+                                console.log(quality);
                                 // Compress the frame data using LZ77 with adjusted quality
-                                const compressedImageData = pako.deflate(uint8Array, { to: 'string', level: quality });
+                                const compressedImageData = pako.deflate(uint8Array, { to: 'string' });
 
                                 socket.emit('stream', { imageDataPart: compressedImageData, timestamp: timestamp, part: framePart });
 
@@ -85,11 +90,11 @@
                                 prevSenderFrame = compressedImageData;
                             };
                             reader.readAsArrayBuffer(blob);
-                        }, 'image/jpeg', 1); // Always start with high-quality (1.0) JPEG
+                        }, 'image/jpeg', quality/10); // Always start with high-quality (1.0) JPEG
 
                         // Adjust quality based on network conditions
                         const uploadSpeed = calculateUploadSpeed();
-                        console.log(`Network condition (Mbps): ${uploadSpeed.toFixed(2)}`);
+                        //console.log(`Network condition (Mbps): ${uploadSpeed.toFixed(2)}`);
 
                     }, 75); // Adjust the capture interval as needed
                 };
