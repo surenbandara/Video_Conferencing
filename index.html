@@ -1,144 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Camera Stream</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
-</head>
-<body>
-    <h1>Sender and Receiver</h1>
-    <div class="sender">
-        <h2>Sender</h2>
-        <video id="video" autoplay></video>
-        <canvas id="senderCanvas"></canvas>
-    </div>
-    <div class="receiver">
-        <h2>Receiver</h2>
-        <canvas id="receiverCanvas"></canvas>
-    </div>
-    <!-- Include the pako library for LZ77 compression -->
-    
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-
-        // Access the user's camera and start streaming
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function (stream) {
-                const videoElement = document.getElementById('video');
-                videoElement.srcObject = stream;
-
-                // Set up a Canvas element for the sender
-                const senderCanvas = document.getElementById('senderCanvas');
-                const senderContext = senderCanvas.getContext('2d');
-
-                // Variables to track the previous frame and timestamp for the sender
-                let prevSenderFrame = null;
-                let framePart = 1; // Track the current frame part
-
-                // Simulated network condition (Mbps)
-                let networkCondition = 10; // Starting with a high-quality network condition
-
-                // Function to calculate upload speed
-                function calculateUploadSpeed() {
-                    // In this simulation, we adjust the network condition between 1 and 10 Mbps
-                    networkCondition = Math.max(1, Math.min(10, networkCondition + (Math.random() - 0.5)));
-                    return networkCondition;
-                }
-
-                // Wait for the video to start playing
-                videoElement.onplay = function () {
-                    senderCanvas.width = videoElement.videoWidth;
-                    senderCanvas.height = videoElement.videoHeight;
-                    
-                    
-                    // Capture and send frames to the server
-                    setInterval(function () {
-                        senderContext.drawImage(videoElement, 0, 0, senderCanvas.width, senderCanvas.height);
-                        
-                        // Calculate the quality based on the current network condition
-                        const quality = 0.1 + (networkCondition / 10) * 0.7;
-
-                        // Convert the frame to a Blob with JPEG format and adjusted quality
-                        senderCanvas.toBlob(function (blob) {
-                            if (!blob) {
-                                console.error('Error converting canvas to Blob.');
-                                return;
-                            }
-
-                            // Read the Blob as an ArrayBuffer
-                            const reader = new FileReader();
-                            reader.onload = function () {
-                                const arrayBuffer = reader.result;
-
-                                // Convert the ArrayBuffer to a Uint8Array
-                                const uint8Array = new Uint8Array(arrayBuffer);
-
-                                // Calculate the sender timestamp
-                                const timestamp = Date.now();
-
-                                
-                                
-                                console.log(quality);
-                                // Compress the frame data using LZ77 with adjusted quality
-                                const compressedImageData = pako.deflate(uint8Array, { to: 'string' });
-
-                                socket.emit('stream', { imageDataPart: compressedImageData, timestamp: timestamp, part: framePart });
-
-                                framePart++; // Increment the frame part
-
-                                prevSenderFrame = compressedImageData;
-                            };
-                            reader.readAsArrayBuffer(blob);
-                        }, 'image/jpeg', quality/10); // Always start with high-quality (1.0) JPEG
-
-                        // Adjust quality based on network conditions
-                        const uploadSpeed = calculateUploadSpeed();
-                        //console.log(`Network condition (Mbps): ${uploadSpeed.toFixed(2)}`);
-
-                    }, 75); // Adjust the capture interval as needed
-                };
-            })
-            .catch(function (error) {
-                console.error('Error accessing the camera:', error);
-            });
-
-        // Set up a Canvas element for the receiver
-        const receiverCanvas = document.getElementById('receiverCanvas');
-        const receiverContext = receiverCanvas.getContext('2d');
-
-        // Object to store and assemble received frame parts
-        const receivedFrames = {};
-
-        // Function to draw a frame on the receiver canvas
-        function drawFrame(frameData) {
-            // Decompress the received frame data using LZ77
-            const decompressedUint8Array = pako.inflate(frameData, { to: 'Uint8Array' });
-            const blob = new Blob([decompressedUint8Array], { type: 'image/jpeg' });
-
-            const img = new Image();
-            img.src = URL.createObjectURL(blob);
-
-            img.onload = function () {
-                receiverCanvas.width = img.width;
-                receiverCanvas.height = img.height;
-                receiverContext.drawImage(img, 0, 0, img.width, img.height);
-            };
-        }
-
-        socket.on('stream', (frameData) => {
-            const timestamp = frameData.timestamp;
-            const imageDataPart = frameData.imageDataPart;
-            const part = frameData.part;
-
-            receivedFrames[part] = { imageDataPart: imageDataPart, timestamp: timestamp, part: part };
-
-            if (receivedFrames[part - 1]) {
-                drawFrame(imageDataPart);
-                delete receivedFrames[part - 1];
-            }
-        });
-
-    </script>
-</body>
-</html>
+<html> 
+ 
+   <head> 
+      <title>WebRTC Video Demo</title>
+      <link rel = "stylesheet" href = "node_modules/bootstrap/dist/css/bootstrap.min.css"/>
+   </head>
+	
+   <style>
+	
+      body { 
+         background: #eee; 
+         padding: 5% 0; 
+      } 
+		
+      video { 
+         background: black; 
+         border: 1px solid gray; 
+      }
+		
+      .call-page { 
+         position: relative; 
+         display: block; 
+         margin: 0 auto; 
+         width: 500px; 
+         height: 500px; 
+      } 
+		
+      #localVideo { 
+         width: 150px; 
+         height: 150px; 
+         position: absolute; 
+         top: 15px; 
+         right: 15px; 
+      }
+		
+      #remoteVideo { 
+         width: 500px; 
+         height: 500px; 
+      }
+		
+   </style>
+	
+   <body>
+	
+   <div id = "loginPage" class = "container text-center"> 
+	
+      <div class = "row"> 
+         <div class = "col-md-4 col-md-offset-4">
+			
+            <h2>WebRTC Video Demo. Please sign in</h2> 
+            <label for = "usernameInput" class = "sr-only">Login</label> 
+            <input type = "email" id = "usernameInput" c
+               lass = "form-control formgroup" placeholder = "Login" 
+               required = "" autofocus = ""> 
+            <button id = "loginBtn" class = "btn btn-lg btn-primary btnblock">
+               Sign in</button>
+				
+         </div> 
+      </div> 
+		
+   </div>
+	
+   <div id = "callPage" class = "call-page"> 
+      <video id = "localVideo" autoplay></video> 
+      <video id = "remoteVideo" autoplay></video>
+		
+      <div class = "row text-center"> 
+         <div class = "col-md-12"> 
+            <input id = "callToUsernameInput" type = "text"
+               placeholder = "username to call" /> 
+            <button id = "callBtn" class = "btn-success btn">Call</button> 
+            <button id = "hangUpBtn" class = "btn-danger btn">Hang Up</button> 
+         </div>	
+      </div> 
+		
+   </div>
+	
+   <script src = "client.js"></script> 
+	
+   </body>
+	
+</html>		  
